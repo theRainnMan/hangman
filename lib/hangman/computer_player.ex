@@ -10,7 +10,7 @@ defmodule Hangman.ComputerPlayer do
       candidate_words: load_words_of_length(length),
       letters_left:    (?a..?z) |>Enum.into([]),
     }
-
+    #IO.inspect(solver)
     make_a_move(game, solver)
   end
 
@@ -27,7 +27,7 @@ defmodule Hangman.ComputerPlayer do
     IO.puts "#{inspect guess} was good"
     IO.puts Game.word_as_string(game)
     IO.puts ""
-    solver = remove_impossible(solver, game.word, guess)
+    solver = remove_impossible(solver, get_adapter_word(game), guess)
     make_a_move(game, solver)
   end
 
@@ -38,7 +38,7 @@ defmodule Hangman.ComputerPlayer do
 
     current = solver.candidate_words
     new_words = remove_words_with_letter(current, guess)
-    |> remove_words_not_matching_pattern(game.word)
+    |> remove_words_not_matching_pattern(get_adapter_word(game))
 
     solver = %{ solver | candidate_words: new_words }
     make_a_move(game, solver)
@@ -54,8 +54,7 @@ defmodule Hangman.ComputerPlayer do
 
 
   def get_guess(game, solver) do
-    freqs = get_frequencies_of_letters(solver.candidate_words,
-                                       solver.letters_left)
+    freqs = get_frequencies_of_letters(solver.candidate_words, solver.letters_left)
     |> Enum.sort(fn {_, a}, {_, b} -> a < b end)
 
     {freqs, _} =
@@ -72,8 +71,8 @@ defmodule Hangman.ComputerPlayer do
     solver = %{ solver | letters_left: letters_left }
 
     ch = << ch :: utf8 >>
-
-    if guess_is_possible(solver, game[:word], ch) do
+        
+    if guess_is_possible(solver, get_adapter_word(game), ch) do
       IO.inspect "#{ch} is possible"
       { solver, ch }
     else
@@ -82,8 +81,12 @@ defmodule Hangman.ComputerPlayer do
     end
   end
 
-
-
+  defp get_adapter_word(game) do
+    String.codepoints(game.word)
+    |> Enum.zip(String.split(Game.word_as_string(game, false)))
+    |> Enum.map(fn {ch, g} -> {ch, ch == g} end) 
+  end
+    
   defp load_words_of_length(len) do
     Hangman.Dictionary.words_of_length(len)
     |> Enum.map(&add_word_signature/1)
@@ -135,6 +138,7 @@ defmodule Hangman.ComputerPlayer do
   # open spot.
 
   defp guess_is_possible(solver, word, guess_ch) do
+    #IO.inspect word
     to_check = Enum.map(word, fn {_ch, known } -> !known end)
     check_possibilities(solver.candidate_words, guess_ch, to_check)
   end
@@ -153,9 +157,6 @@ defmodule Hangman.ComputerPlayer do
       true     -> check_possibilities(rest, guess_ch, to_check)
     end
   end
-
-
-
 
   defp remove_impossible(solver, word, guess_ch) do
     to_check = Enum.map(word, fn {ch, known } -> ch == guess_ch && known end)

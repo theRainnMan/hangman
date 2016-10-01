@@ -147,6 +147,17 @@ defmodule GameTest do
       end)
     end
 
+    test "is lost after 10 bad guesses" do
+      game = Game.new_game("wwwwwwww")
+      nine_guesses = ~w{ a b c d e f g h i }
+      game = Enum.reduce(nine_guesses, game, fn (guess, game) ->
+        { game, status, _ } = Game.make_move(game, guess)
+        assert status == :bad_guess
+        game
+      end)
+
+      assert { _, :lost, _ } = Game.make_move(game, "j")
+    end
   end
 
   
